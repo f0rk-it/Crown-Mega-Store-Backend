@@ -31,8 +31,8 @@ class ProductUpdate(BaseModel):
 
 class ProductResponse(ProductBase):
     id: str
-    view_count: str
-    order_count: str
+    view_count: int
+    order_count: int
     rating: Decimal
     is_featured: bool
     is_new: bool
