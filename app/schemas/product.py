@@ -1,13 +1,12 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from decimal import Decimal
 
 
 class ProductBase(BaseModel):
     name: str
     description: Optional[str] = None
-    price: Decimal
+    price: float
     category: str
     image_url: Optional[str] = None
     stock_quantity: int = 0
@@ -21,7 +20,7 @@ class ProductCreate(ProductBase):
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    price: Optional[Decimal] = None
+    price: Optional[float] = None
     category: Optional[str] = None
     image_url: Optional[str] = None
     stock_quantity: Optional[int] = None
@@ -33,7 +32,7 @@ class ProductResponse(ProductBase):
     id: str
     view_count: int
     order_count: int
-    rating: Decimal
+    rating: float
     is_featured: bool
     is_new: bool
     created_at: datetime

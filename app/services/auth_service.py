@@ -43,42 +43,77 @@ class AuthService:
         """Get existing user or create a new one"""
         db = get_db()
         
-        # Check if user exists
-        result = db.table('users').select().eq('email', user_data['email']).execute()
-        
-        if result.data:
-            # User exists, update their info
-            user = result.data[0]
-            updated_user = db.table('users').update({
-                'name': user_data['name'],
-                'avatar_url': user_data['avatar_url'],
-                'updated_at': datetime.utcnow().isoformat()
-            }).eq('id', user['id']).execute()
-        else:
-            # Create a new user
-            new_user = db.table('users').insert({
-                'email': user_data['email'],
-                'name': user_data['name'],
-                'google_id': user_data['google_id'],
-                'avatar_url': user_data['avatar_url'],
-                'role': 'customer'
-            }).execute()
-
-            return new_user.data[0]
+        try:
+            # Check if user exists by email
+            result = db.table('users').select('*').eq('email', user_data['email']).execute()
+            
+            if result.data and len(result.data) > 0:
+                # User exists, update their info
+                user = result.data[0]
+                
+                # Update user data
+                updated_user = db.table('users').update({
+                    'name': user_data.get('name', user['name']),
+                    'avatar_url': user_data.get('avatar_url', user.get('avatar_url')),
+                    'google_id': user_data.get('google_id', user.get('google_id')),
+                    'updated_at': datetime.utcnow().isoformat()
+                }).eq('id', user['id']).execute()
+                
+                if updated_user.data and len(updated_user.data) > 0:
+                    return updated_user.data[0]
+                return user
+            else:
+                # Create new user
+                new_user_data = {
+                    'email': user_data['email'],
+                    'name': user_data.get('name', 'User'),
+                    'google_id': user_data.get('google_id', ''),
+                    'avatar_url': user_data.get('avatar_url', ''),
+                    'role': 'customer',
+                    'created_at': datetime.utcnow().isoformat(),
+                    'updated_at': datetime.utcnow().isoformat()
+                }
+                
+                new_user = db.table('users').insert(new_user_data).execute()
+                
+                if new_user.data and len(new_user.data) > 0:
+                    return new_user.data[0]
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail='Failed to create user'
+                    )
+                    
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"Database error in get_or_create_user: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database operation failed: {str(e)}"
+            )
     
     @staticmethod
     async def create_user_session(user: dict) -> dict:
         """Create a JWT token for user session"""
-        token_data = {
-            'sub': user['id'],
-            'email': user['email'],
-            'role': user['role']
-        }
+        try:
+            token_data = {
+                'sub': user['id'],
+                'email': user['email'],
+                'role': user.get('role', 'customer')
+            }
+            
+            access_token = create_access_token(token_data)
+            
+            return {
+                'access_token': access_token,
+                'token_type': 'bearer',
+                'user': user
+            }
         
-        access_token = create_access_token(data=token_data)
-        
-        return {
-            'access_token': access_token,
-            'token_type': 'bearer',
-            'user': user
-        }
+        except Exception as e:
+            print(f"Error creating session: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create session: {str(e)}"
+            )

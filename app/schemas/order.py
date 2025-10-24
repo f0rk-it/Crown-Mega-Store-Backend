@@ -65,10 +65,10 @@ class OrderResponse(BaseModel):
     pickup_preference: bool
     order_notes: Optional[str] = None
     payment_preference: str
-    total: Decimal
+    total: float
     status: str
     payment_confirmed: bool
-    payment_amount: Decimal
+    payment_amount: Optional[float]
     payment_method: Optional[str]
     created_at: datetime
     updated_at: datetime

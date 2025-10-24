@@ -53,9 +53,22 @@ async def get_order(order_id: str):
 @router.get('/user/my-orders', response_model=OrderListResponse)
 async def get_my_orders(current_user: dict = Depends(get_current_active_user), status: Optional[str] = None):
     """Get all orders for current authenticated user"""
-    orders = OrderService.get_user_orders(current_user['sub'], status)
-    
-    return OrderListResponse(orders=orders, count=len(orders))
+    try:
+        user_id = current_user['sub']
+        print(f"Getting orders for user: {user_id}")
+        
+        orders = OrderService.get_user_orders(user_id, status)
+        
+        print(f"Found {len(orders)} orders")
+        
+        return OrderListResponse(orders=orders, count=len(orders))
+        
+    except Exception as e:
+        print(f"Error in get_my_orders: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch orders: {str(e)}"
+        )
 
 @router.post('/{order_id}/status', response_model=OrderResponse, dependencies=[Depends(get_current_admin_user)])
 async def update_order_status(order_id: str, status_update: OrderStatusUpdate):

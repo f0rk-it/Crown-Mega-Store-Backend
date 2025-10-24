@@ -203,15 +203,25 @@ class OrderService:
     @staticmethod
     def get_user_orders(user_id: str, status: Optional[str] = None):
         """Get all orders for a user"""
-        db = get_db()
-        
-        query = db.table('orders').select('*').eq('user_id', user_id)
-        
-        if status:
-            query = query.eq('status', status)
+        try:
+            db = get_db()
             
-        result = query.order('created_at', desc=True).execute()
-        return result.data
+            query = db.table('orders').select('*').eq('user_id', user_id)
+            
+            if status:
+                query = query.eq('status', status)
+                
+            result = query.order('created_at', desc=True).execute()
+            
+            print(f"Database query for user_id: {user_id}")
+            print(f"Query result: {result}")
+            
+            return result.data if result.data else []
+        
+        except Exception as e:
+            print(f"Error in get_user_orders: {str(e)}")
+            print(f"User ID: {user_id}")
+            raise e
     
     @staticmethod
     def get_all_orders(status: Optional[str] = None, limit: int = 50, page: int = 1):

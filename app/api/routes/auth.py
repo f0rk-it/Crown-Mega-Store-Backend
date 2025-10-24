@@ -11,20 +11,32 @@ async def google_auth(auth_request: GoogleAuthRequest):
        Frontend should send the Google OAuth token after user signs in with Google.
     """
     try:
+        print(f"Received Google auth request")
+        
         # Verify Google token and get user info
+        print('Verifying Google token...')
         user_data = await AuthService.verify_google_token(auth_request.token)
+        print(f"Token verified for user: {user_data.get('email')}")
         
         # Get or create user in database
+        print('Getting or creating user...')
         user = await AuthService.get_or_create_user(user_data)
+        print(f"User retrieved/created: {user.get('id')}")
         
         # Create session and return JWT token
+        print('Creating session...')
         session = await AuthService.create_user_session(user)
+        print('Session created successfully')
         
         return session
     
-    except HTTPException:
+    except HTTPException as he:
+        print(f"HTTPException: {he.detail}")
         raise
     except Exception as e:
+        print(f"Unexpected error in google_auth: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Authentication failed: {str(e)}"
@@ -33,8 +45,15 @@ async def google_auth(auth_request: GoogleAuthRequest):
 @router.get('/me', response_model=UserResponse)
 async def get_current_user_info(current_user: dict = Depends(get_current_active_user)):
     """Get current authenticated users info"""
-    user = get_user_from_db(current_user['id'])
-    return user
+    try:
+        user = get_user_from_db(current_user['sub'])
+        return user
+    except Exception as e:
+        print(f"Error getting current user: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get user info: {str(e)}"
+        )
 
 @router.post('/logout')
 async def logout(current_user: dict = Depends(get_current_active_user)):
