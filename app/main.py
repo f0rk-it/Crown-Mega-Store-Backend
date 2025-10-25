@@ -13,7 +13,7 @@ app = FastAPI(
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, 'http://localhost:3000', 'http://192.168.137.1:3000',],
+    allow_origins=[settings.FRONTEND_URL, 'http://localhost:3000', 'http://192.168.137.1:3000', 'https://crown-mega-store.vercel.app', 'http://crown-mega-store.vercel.app'],
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
