@@ -4,6 +4,10 @@ from app.utils.order_id_generator import generate_order_id
 from app.services.email_service import EmailService
 from datetime import datetime
 from app.core.config import settings
+import logging
+import asyncio
+
+logger = logging.getLogger(__name__)
 
 
 class OrderService:
@@ -82,21 +86,45 @@ class OrderService:
             'created_at': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         }
         
-        # Send emails
-        business_html = EmailService.format_order_email_business(email_data)
-        customer_html = EmailService.format_order_email_customer(email_data)
-        
-        await EmailService.send_email(
-            settings.BUSINESS_EMAIL,
-            f"New Order #{order_id} - ₦{total:.2f}",
-            business_html
-        )
-        
-        await EmailService.send_email(
-            order_data['customer_info']['email'],
-            f"Order Confirmation #{order_id} - Crown Mega Store",
-            customer_html
-        )
+        # Send emails (non-blocking)
+        try:
+            business_html = EmailService.format_order_email_business(email_data)
+            customer_html = EmailService.format_order_email_customer(email_data)
+            
+            # Send emails in parallel but don't block order creation if they fail
+            business_email_task = EmailService.send_email(
+                settings.BUSINESS_EMAIL,
+                f"New Order #{order_id} - ₦{total:.2f}",
+                business_html
+            )
+            
+            customer_email_task = EmailService.send_email(
+                order_data['customer_info']['email'],
+                f"Order Confirmation #{order_id} - Crown Mega Store",
+                customer_html
+            )
+            
+            # Run email tasks concurrently
+            business_result, customer_result = await asyncio.gather(
+                business_email_task, 
+                customer_email_task, 
+                return_exceptions=True
+            )
+            
+            # Log email results
+            if business_result is True:
+                logger.info(f"Business notification email sent for order {order_id}")
+            else:
+                logger.warning(f"Failed to send business email for order {order_id}: {business_result}")
+                
+            if customer_result is True:
+                logger.info(f"Customer confirmation email sent for order {order_id}")
+            else:
+                logger.warning(f"Failed to send customer email for order {order_id}: {customer_result}")
+                
+        except Exception as e:
+            logger.error(f"Email service failed for order {order_id}: {str(e)}")
+            # Continue anyway - don't let email failures block order creation
         
         return created_order
 

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import auth, products, orders, cart, recommendations, admin
+from app.api.routes import auth, products, orders, cart, recommendations, admin, email_test
 from datetime import datetime
 
 app = FastAPI(
@@ -26,6 +26,7 @@ app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])
 app.include_router(cart.router, prefix="/api/cart", tags=["Cart"])
 app.include_router(recommendations.router, prefix="/api/recommendations", tags=["Recommendations"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(email_test.router, prefix="/api/debug", tags=["Debug"])
 
 
 @app.get('/')

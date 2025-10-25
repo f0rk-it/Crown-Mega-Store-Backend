@@ -3,6 +3,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.core.config import settings
 from typing import Optional
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class EmailService:
@@ -11,6 +16,13 @@ class EmailService:
     async def send_email(to_email: str, subject: str, html_content: str):
         """Send HTML email"""
         try:
+            logger.info(f"Attempting to send email to {to_email} with subject: {subject}")
+            
+            # Validate email configuration
+            if not all([settings.SMTP_HOST, settings.SMTP_PORT, settings.SMTP_USER, settings.SMTP_PASSWORD]):
+                logger.error("Email configuration is incomplete. Check environment variables.")
+                return False
+            
             message = MIMEMultipart('alternative')
             message['Subject'] = subject
             message['From'] = settings.SMTP_USER
@@ -19,18 +31,31 @@ class EmailService:
             html_part = MIMEText(html_content, 'html')
             message.attach(html_part)
             
+            logger.info(f"Connecting to SMTP server: {settings.SMTP_HOST}:{settings.SMTP_PORT}")
+            
             await aiosmtplib.send(
                 message,
                 hostname=settings.SMTP_HOST,
                 port=settings.SMTP_PORT,
                 username=settings.SMTP_USER,
                 password=settings.SMTP_PASSWORD,
-                start_tls=True
+                start_tls=True,
+                timeout=30  # Add timeout
             )
             
+            logger.info(f"Email successfully sent to {to_email}")
             return True
+        except aiosmtplib.SMTPAuthenticationError as e:
+            logger.error(f"SMTP Authentication failed: {str(e)}. Check username/password.")
+            return False
+        except aiosmtplib.SMTPConnectError as e:
+            logger.error(f"SMTP Connection failed: {str(e)}. Check host/port.")
+            return False
+        except aiosmtplib.SMTPRecipientsRefused as e:
+            logger.error(f"Recipients refused: {str(e)}. Check email address.")
+            return False
         except Exception as e:
-            print(f"Email sending failed: {str(e)}")
+            logger.error(f"Email sending failed with unexpected error: {str(e)}")
             return False
         
     @staticmethod
