@@ -43,8 +43,8 @@ class EmailService:
             <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #eee;">{item['product_name']}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">{item['quantity']}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${float(item['price']):.2f}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">${subtotal:.2f}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">₦{float(item['price']):.2f}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">₦{subtotal:.2f}</td>
             </tr>
             """
         
@@ -103,7 +103,7 @@ class EmailService:
                                 <tr class="total-row">
                                     <td colspan="3" style="padding: 15px; text-align: right;">TOTAL:</td>
                                     <td style="padding: 15px; text-align: right; color: #e74c3c; font-size: 20px;">
-                                        ${float(order_data['total']):.2f}
+                                        ₦{float(order_data['total']):.2f}
                                     </td>
                                 </tr>
                             </tfoot>
@@ -150,8 +150,8 @@ class EmailService:
             <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #eee;">{item['product_name']}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">{item['quantity']}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${float(item['price']):.2f}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">${subtotal:.2f}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">₦{float(item['price']):.2f}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">₦{subtotal:.2f}</td>
             </tr>
             """
         
@@ -206,7 +206,7 @@ class EmailService:
                                 <tr class="total-row">
                                     <td colspan="3" style="padding: 15px; text-align: right;">ORDER TOTAL:</td>
                                     <td style="padding: 15px; text-align: right; color: #27ae60; font-size: 20px;">
-                                        ${float(order_data['total']):.2f}
+                                        ₦{float(order_data['total']):.2f}
                                     </td>
                                 </tr>
                             </tfoot>
@@ -303,7 +303,7 @@ class EmailService:
                     
                     <div class="order-box">
                         <p><strong>Order ID:</strong> {order['order_id']}</p>
-                        <p><strong>Total:</strong> ${float(order['total']):.2f}</p>
+                        <p><strong>Total:</strong> ₦{float(order['total']):.2f}</p>
                         <p><strong>Status:</strong> {new_status.replace('_', ' ').title()}</p>
                     </div>
                     
