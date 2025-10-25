@@ -130,7 +130,7 @@ async def get_order_stats():
     
     # Calculate statistics
     total_orders = len(all_orders)
-    total_revenue = sum(float(order['total']) for order in all_orders if order.get('payment_confirmed'))
+    total_revenue = sum(float(order['total']) for order in all_orders if order.get('payment_confirmed') or order['status'] == 'delivered')
     pending_orders = len([o for o in all_orders if o['status'] == 'pending'])
     confirmed_orders = len([o for o in all_orders if o['status'] == 'confirmed'])
     completed_orders = len([o for o in all_orders if o['status'] == 'delivered'])
@@ -155,5 +155,5 @@ async def get_order_stats():
         "recent_orders_count": len(recent_orders),
         "average_order_value": round(avg_order_value, 2),
         "status_breakdown": dict(status_counts),
-        "payment_confirmed_count": len([o for o in all_orders if o.get('payment_confirmed')])
+        "payment_confirmed_count": len([o for o in all_orders if o.get('payment_confirmed') or o['status'] == 'delivered'])
     }
