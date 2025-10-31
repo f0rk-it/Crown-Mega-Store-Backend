@@ -4,6 +4,15 @@ from email.mime.multipart import MIMEMultipart
 from app.core.config import settings
 from typing import Optional
 import logging
+import asyncio
+
+# SendGrid imports
+try:
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail
+    SENDGRID_AVAILABLE = True
+except ImportError:
+    SENDGRID_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -13,14 +22,14 @@ logger = logging.getLogger(__name__)
 class EmailService:
     
     @staticmethod
-    async def send_email(to_email: str, subject: str, html_content: str):
-        """Send HTML email"""
+    async def send_email_via_smtp(to_email: str, subject: str, html_content: str):
+        """Send email via SMTP (Gmail)"""
         try:
-            logger.info(f"Attempting to send email to {to_email} with subject: {subject}")
+            logger.info(f"Sending email via SMTP to {to_email}")
             
-            # Validate email configuration
+            # Validate SMTP configuration
             if not all([settings.SMTP_HOST, settings.SMTP_PORT, settings.SMTP_USER, settings.SMTP_PASSWORD]):
-                logger.error("Email configuration is incomplete. Check environment variables.")
+                logger.error("SMTP configuration is incomplete. Check environment variables.")
                 return False
             
             message = MIMEMultipart('alternative')
@@ -40,22 +49,92 @@ class EmailService:
                 username=settings.SMTP_USER,
                 password=settings.SMTP_PASSWORD,
                 start_tls=True,
-                timeout=30  # Add timeout
+                timeout=30
             )
             
-            logger.info(f"Email successfully sent to {to_email}")
+            logger.info(f"SMTP email successfully sent to {to_email}")
             return True
+            
         except aiosmtplib.SMTPAuthenticationError as e:
-            logger.error(f"SMTP Authentication failed: {str(e)}. Check username/password.")
+            logger.error(f"SMTP Authentication failed: {str(e)}")
             return False
         except aiosmtplib.SMTPConnectError as e:
-            logger.error(f"SMTP Connection failed: {str(e)}. Check host/port.")
+            logger.error(f"SMTP Connection failed: {str(e)}")
             return False
         except aiosmtplib.SMTPRecipientsRefused as e:
-            logger.error(f"Recipients refused: {str(e)}. Check email address.")
+            logger.error(f"SMTP Recipients refused: {str(e)}")
             return False
         except Exception as e:
-            logger.error(f"Email sending failed with unexpected error: {str(e)}")
+            logger.error(f"SMTP email failed: {str(e)}")
+            return False
+
+    @staticmethod
+    async def send_email_via_sendgrid(to_email: str, subject: str, html_content: str):
+        """Send email via SendGrid API"""
+        try:
+            if not SENDGRID_AVAILABLE:
+                logger.error("SendGrid package not installed")
+                return False
+                
+            if not settings.SENDGRID_API_KEY:
+                logger.error("SendGrid API key not configured")
+                return False
+            
+            logger.info(f"Sending email via SendGrid to {to_email}")
+            
+            # Create SendGrid message
+            message = Mail(
+                from_email=settings.FROM_EMAIL,
+                to_emails=to_email,
+                subject=subject,
+                html_content=html_content
+            )
+            
+            # Send email
+            sg = SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
+            
+            # Run in executor to make it async
+            def send_sync():
+                return sg.send(message)
+            
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, send_sync)
+            
+            if response.status_code >= 200 and response.status_code < 300:
+                logger.info(f"SendGrid email successfully sent to {to_email}")
+                return True
+            else:
+                logger.error(f"SendGrid API error: {response.status_code} - {response.body}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"SendGrid email failed: {str(e)}")
+            return False
+
+    @staticmethod
+    async def send_email(to_email: str, subject: str, html_content: str):
+        """Send email using configured provider with fallback"""
+        logger.info(f"Attempting to send email to {to_email} with provider: {settings.EMAIL_PROVIDER}")
+        
+        # Try primary provider
+        if settings.EMAIL_PROVIDER.lower() == "sendgrid":
+            success = await EmailService.send_email_via_sendgrid(to_email, subject, html_content)
+            if success:
+                return True
+            logger.warning("SendGrid failed, trying SMTP fallback...")
+            return await EmailService.send_email_via_smtp(to_email, subject, html_content)
+        else:
+            # Default to SMTP with SendGrid fallback
+            success = await EmailService.send_email_via_smtp(to_email, subject, html_content)
+            if success:
+                return True
+            
+            # Fallback to SendGrid if available
+            if SENDGRID_AVAILABLE and settings.SENDGRID_API_KEY:
+                logger.warning("SMTP failed, trying SendGrid fallback...")
+                return await EmailService.send_email_via_sendgrid(to_email, subject, html_content)
+            
+            logger.error("Both SMTP and SendGrid failed or unavailable")
             return False
         
     @staticmethod

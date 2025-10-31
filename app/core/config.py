@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str
     BUSINESS_EMAIL: str
     
+    # SendGrid (alternative email service)
+    SENDGRID_API_KEY: str
+    EMAIL_PROVIDER: str = "sendgrid"  # "smtp" or "sendgrid"
+    FROM_EMAIL: str = "crownmegastore@gmail.com"
+    
     # Business
     BUSINESS_WHATSAPP: str
     BUSINESS_PHONE: str

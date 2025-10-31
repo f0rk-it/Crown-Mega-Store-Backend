@@ -94,11 +94,18 @@ async def get_email_config():
     """Get current email configuration (for debugging)"""
     
     return {
-        "smtp_host": settings.SMTP_HOST,
-        "smtp_port": settings.SMTP_PORT,
-        "smtp_user": settings.SMTP_USER,
+        "email_provider": settings.EMAIL_PROVIDER,
+        "smtp_config": {
+            "host": settings.SMTP_HOST,
+            "port": settings.SMTP_PORT,
+            "user": settings.SMTP_USER,
+            "password_set": bool(settings.SMTP_PASSWORD),
+            "password_length": len(settings.SMTP_PASSWORD) if settings.SMTP_PASSWORD else 0
+        },
+        "sendgrid_config": {
+            "api_key_set": bool(settings.SENDGRID_API_KEY),
+            "api_key_length": len(settings.SENDGRID_API_KEY) if settings.SENDGRID_API_KEY else 0
+        },
         "business_email": settings.BUSINESS_EMAIL,
-        "environment": settings.ENVIRONMENT,
-        "password_set": bool(settings.SMTP_PASSWORD),
-        "password_length": len(settings.SMTP_PASSWORD) if settings.SMTP_PASSWORD else 0
+        "environment": settings.ENVIRONMENT
     }
