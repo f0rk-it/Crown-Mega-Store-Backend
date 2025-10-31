@@ -22,7 +22,7 @@ colorama==0.4.6
 colorlog==6.9.0
 constantly==23.10.4
 Crawl4AI==0.6.3
-cryptography==46.0.3
+cryptography
 cssselect==1.3.0
 defusedxml==0.7.1
 distro==1.9.0
@@ -101,7 +101,7 @@ PyGetWindow==0.0.9
 Pygments==2.19.1
 PyJWT==2.10.1
 PyMsgBox==1.0.9
-pyOpenSSL==25.1.0
+pyOpenSSL
 pyperclip==1.9.0
 PyQt6==6.9.1
 PyQt6-Qt6==6.9.1
