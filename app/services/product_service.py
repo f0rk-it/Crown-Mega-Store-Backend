@@ -26,6 +26,87 @@ class ProductService:
         return 0
     
     @staticmethod
+    def get_product_images(product_id: str):
+        """Get all images for a product"""
+        db = get_db()
+        result = db.table('product_images').select('*').eq('product_id', product_id).order('display_order').execute()
+        return result.data
+    
+    @staticmethod
+    def add_product_images(product_id: str, images: List[dict]):
+        """Add multiple images to a product"""
+        db = get_db()
+        
+        # Prepare image data
+        image_data = []
+        for i, img in enumerate(images):
+            image_record = {
+                'product_id': product_id,
+                'image_url': img['image_url'],
+                'alt_text': img.get('alt_text'),
+                'display_order': img.get('display_order', i),
+                'is_primary': img.get('is_primary', i == 0),  # First image is primary by default
+                'created_at': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow().isoformat()
+            }
+            image_data.append(image_record)
+        
+        if image_data:
+            result = db.table('product_images').insert(image_data).execute()
+            return result.data
+        return []
+    
+    @staticmethod
+    def update_product_images(product_id: str, images: List[dict]):
+        """Update product images (replace existing)"""
+        db = get_db()
+        
+        # Delete existing images
+        db.table('product_images').delete().eq('product_id', product_id).execute()
+        
+        # Add new images
+        return ProductService.add_product_images(product_id, images)
+    
+    @staticmethod
+    def get_products_with_images(products: List[dict]) -> List[dict]:
+        """Enrich products with their images"""
+        db = get_db()
+        
+        if not products:
+            return products
+        
+        # Get all product IDs
+        product_ids = [p['id'] for p in products]
+        
+        # Get all images for these products in one query
+        images_result = db.table('product_images').select('*').in_('product_id', product_ids).order('display_order').execute()
+        images_by_product = {}
+        
+        for img in images_result.data:
+            if img['product_id'] not in images_by_product:
+                images_by_product[img['product_id']] = []
+            images_by_product[img['product_id']].append(img)
+        
+        # Enrich products with images
+        for product in products:
+            product['images'] = images_by_product.get(product['id'], [])
+            
+            # For backward compatibility: if no images but has image_url, create image entry
+            if not product['images'] and product.get('image_url'):
+                product['images'] = [{
+                    'id': None,
+                    'product_id': product['id'],
+                    'image_url': product['image_url'],
+                    'alt_text': product.get('name', ''),
+                    'display_order': 0,
+                    'is_primary': True,
+                    'created_at': product.get('created_at'),
+                    'updated_at': product.get('updated_at')
+                }]
+        
+        return products
+    
+    @staticmethod
     def get_all_products(
         category: Optional[str] = None,
         sort_by: str = 'balanced',
@@ -44,6 +125,9 @@ class ProductService:
         # Execute query
         result = query.execute()
         products = result.data
+        
+        # Add images to products
+        products = ProductService.get_products_with_images(products)
         
         # Apply sorting
         if sort_by == 'balanced':
@@ -71,14 +155,18 @@ class ProductService:
     
     @staticmethod
     def get_product_by_id(product_id: str):
-        """Get single product by ID"""
+        """Get single product by ID with images"""
         db = get_db()
         result = db.table('products').select('*').eq('id', product_id).execute()
         
         if not result.data:
             return None
         
-        return result.data[0]
+        product = result.data[0]
+        
+        # Add images
+        products_with_images = ProductService.get_products_with_images([product])
+        return products_with_images[0] if products_with_images else product
     
     @staticmethod
     def increment_view_count(product_id: str):
@@ -106,7 +194,10 @@ class ProductService:
         filtered = [
             p for p in products
             if search_lower in p['name'].lower() or (p.get('description') and search_lower in p['description'].lower())
-        ]        
+        ]
+        
+        # Add images to filtered products
+        filtered = ProductService.get_products_with_images(filtered)
         
         return filtered[:limit]
     
