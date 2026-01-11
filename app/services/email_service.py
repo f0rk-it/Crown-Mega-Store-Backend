@@ -14,6 +14,13 @@ try:
 except ImportError:
     SENDGRID_AVAILABLE = False
 
+# Resend imports
+try:
+    import resend
+    RESEND_AVAILABLE = True
+except ImportError:
+    RESEND_AVAILABLE = False
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -152,29 +159,85 @@ class EmailService:
             return False
 
     @staticmethod
+    async def send_email_via_resend(to_email: str, subject: str, html_content: str):
+        """Send email via Resend API"""
+        try:
+            if not RESEND_AVAILABLE:
+                logger.error("Resend package not installed")
+                return False
+                
+            if not settings.RESEND_API_KEY:
+                logger.error("Resend API key not configured")
+                return False
+            
+            logger.info(f"Sending email via Resend to {to_email}")
+            
+            # Set API key
+            resend.api_key = settings.RESEND_API_KEY
+            
+            # For sandbox/testing without verified domain, use onboarding@resend.dev
+            # For production with verified domain, use your domain email
+            from_email = "Crown Mega Store <onboarding@resend.dev>"
+            
+            # Create email params
+            params = {
+                "from": from_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+            }
+            
+            # Send email (Resend SDK is sync, so wrap in executor)
+            def send_sync():
+                return resend.Emails.send(params)
+            
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, send_sync)
+            
+            logger.info(f"Resend email successfully sent to {to_email}. ID: {response.get('id', 'N/A')}")
+            return True
+                
+        except Exception as e:
+            logger.error(f"Resend email failed: {str(e)}")
+            return False
+
+    @staticmethod
     async def send_email(to_email: str, subject: str, html_content: str):
         """Send email using configured provider with fallback"""
         logger.info(f"Attempting to send email to {to_email} with provider: {settings.EMAIL_PROVIDER}")
         
         # Try primary provider
-        if settings.EMAIL_PROVIDER.lower() == "sendgrid":
+        if settings.EMAIL_PROVIDER.lower() == "resend":
+            success = await EmailService.send_email_via_resend(to_email, subject, html_content)
+            if success:
+                return True
+            logger.warning("Resend failed, trying SMTP fallback...")
+            return await EmailService.send_email_via_smtp(to_email, subject, html_content)
+        elif settings.EMAIL_PROVIDER.lower() == "sendgrid":
             success = await EmailService.send_email_via_sendgrid(to_email, subject, html_content)
             if success:
                 return True
             logger.warning("SendGrid failed, trying SMTP fallback...")
             return await EmailService.send_email_via_smtp(to_email, subject, html_content)
         else:
-            # Default to SMTP with SendGrid fallback
+            # Default to SMTP with fallbacks
             success = await EmailService.send_email_via_smtp(to_email, subject, html_content)
             if success:
                 return True
             
+            # Try Resend fallback first
+            if RESEND_AVAILABLE and settings.RESEND_API_KEY:
+                logger.warning("SMTP failed, trying Resend fallback...")
+                success = await EmailService.send_email_via_resend(to_email, subject, html_content)
+                if success:
+                    return True
+            
             # Fallback to SendGrid if available
             if SENDGRID_AVAILABLE and settings.SENDGRID_API_KEY:
-                logger.warning("SMTP failed, trying SendGrid fallback...")
+                logger.warning("SMTP and Resend failed, trying SendGrid fallback...")
                 return await EmailService.send_email_via_sendgrid(to_email, subject, html_content)
             
-            logger.error("Both SMTP and SendGrid failed or unavailable")
+            logger.error("All email providers failed or unavailable")
             return False
         
     @staticmethod

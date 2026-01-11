@@ -32,8 +32,11 @@ class Settings(BaseSettings):
     
     # SendGrid (alternative email service)
     SENDGRID_API_KEY: str
-    EMAIL_PROVIDER: str = "sendgrid"  # "smtp" or "sendgrid"
+    EMAIL_PROVIDER: str = "resend"  # "smtp", "sendgrid", or "resend"
     FROM_EMAIL: str = "crownmegastore@gmail.com"
+    
+    # Resend
+    RESEND_API_KEY: str = ""
     
     # Business
     BUSINESS_WHATSAPP: str
